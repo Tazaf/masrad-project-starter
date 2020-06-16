@@ -9,7 +9,6 @@ This material is part of the [Advanced Front-end Development](https://github.com
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-
 - [Prerequisites](#prerequisites)
 - [Features](#features)
 - [Design the user interface](#design-the-user-interface)
@@ -46,7 +45,7 @@ The latest LTS (Long Term Support) version is recommended (v12.18.0 at the time 
 
 ## Features
 
-The features that the final application should support can be found in [the course introduction subject](https://mediacomem.github.io/comem-masrad-dfa/latest/subjects/intro/#12).
+The features that the final application should support can be found in [the course introduction subject](https://mediacomem.github.io/comem-masrad-dfa/latest/subjects/intro/#9).
 
 This starter instructions will ONLY cover **registering and logging users**. The rest is up to you.
 
@@ -346,6 +345,18 @@ Generate a login page component declared by the `SecurityModule`:
 $> ng generate component security/LoginPage
 ```
 
+To make this `LoginPageComponent` visible when importing the `SecurityModule` into the `AppModule`, add it to the `exports` array of the `SecurityModule` configuration in `security.module.ts` :
+
+```ts
+// Imports
+
+@NgModule({
+  // ...
+  exports: [LoginPageComponent],
+})
+export class SecurityModule {}
+```
+
 Update the generated `src/app/security/login-page/login-page.component.ts` as follows:
 
 ```ts
@@ -607,6 +618,18 @@ Let's create a dedicated component for that in our `SecurityModule`:
 
 ```bash
 $> ng generate component security/LogoutButton
+```
+
+Like the `LoginPageComponent`, configure the `SecurityModule` to export this `LogoutButtonComponent`, so the `AppModule` can see it. Do this in `security.module.ts`:
+
+```ts
+// Imports
+
+@NgModule({
+  // ...
+  exports: [LoginPageComponent, LogoutButtonComponent],
+})
+export class SecurityModule {}
 ```
 
 Delete the `logout-button.component.html` and `logout-button.component.scss` file as we won't need them, then update the `logout-button.component.ts` file with the following content:
