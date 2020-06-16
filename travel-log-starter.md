@@ -9,7 +9,6 @@ This material is part of the [Advanced Front-end Development](https://github.com
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-
 - [Prerequisites](#prerequisites)
 - [Features](#features)
 - [Design the user interface](#design-the-user-interface)
@@ -341,6 +340,23 @@ Generate a login page component declared by the `SecurityModule`:
 $> ng generate component security/LoginPage
 ```
 
+Since this login screen will be composed of a form, you'll need to import the `FormsModule` in your `SecurityModule`.
+
+While you're at ti, add the `LoginPageComponent` to the `exports` array of the `SecurityModule` configuration in `security.module.ts`, to make it visible when importing the `SecurityModule` into the `AppModule` :
+
+```ts
+// Imports
+import { FormsModule } from "@angular/forms";
+
+@NgModule({
+  // ...
+  imports: [CommonModule, FormsModule],
+  // ...
+  exports: [LoginPageComponent],
+})
+export class SecurityModule {}
+```
+
 Update the generated `src/app/security/login-page/login-page.component.ts` as follows:
 
 ```ts
@@ -602,6 +618,18 @@ Let's create a dedicated component for that in our `SecurityModule`:
 
 ```bash
 $> ng generate component security/LogoutButton
+```
+
+Like the `LoginPageComponent`, configure the `SecurityModule` to export this `LogoutButtonComponent`, so the `AppModule` can see it. Do this in `security.module.ts`:
+
+```ts
+// Imports
+
+@NgModule({
+  // ...
+  exports: [LoginPageComponent, LogoutButtonComponent],
+})
+export class SecurityModule {}
 ```
 
 Delete the `logout-button.component.html` and `logout-button.component.scss` file as we won't need them, then update the `logout-button.component.ts` file with the following content:

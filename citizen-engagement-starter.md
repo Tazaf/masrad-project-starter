@@ -345,12 +345,17 @@ Generate a login page component declared by the `SecurityModule`:
 $> ng generate component security/LoginPage
 ```
 
-To make this `LoginPageComponent` visible when importing the `SecurityModule` into the `AppModule`, add it to the `exports` array of the `SecurityModule` configuration in `security.module.ts` :
+Since this login screen will be composed of a form, you'll need to import the `FormsModule` in your `SecurityModule`.
+
+While you're at ti, add the `LoginPageComponent` to the `exports` array of the `SecurityModule` configuration in `security.module.ts`, to make it visible when importing the `SecurityModule` into the `AppModule` :
 
 ```ts
 // Imports
+import { FormsModule } from "@angular/forms";
 
 @NgModule({
+  // ...
+  imports: [CommonModule, FormsModule],
   // ...
   exports: [LoginPageComponent],
 })
