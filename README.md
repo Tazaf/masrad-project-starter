@@ -36,16 +36,18 @@ This material is part of the [Advanced Front-end Development](https://github.com
 
 ## Prerequisites
 
-These instructions assume that you are using the Travel Log API and have read its [documentation](https://comem-travel-log-api.herokuapp.com/).
+These instructions assume that you are using the Travel Log API and have read its [documentation](https://comem-travel-log-api.onrender.com/).
+
+> You should have or will receive soon the URL of a dedicated API for your projet. Use this URL instead of the demo one as soon as you have it.
 
 You will need to have [Node.js](https://nodejs.org) installed.
-The latest LTS (Long Term Support) version is recommended (v12.18.0 at the time of writing these instructions).
+The latest LTS (Long Term Support) version is recommended (v18 at the time of writing these instructions).
 
 <a href="#top">↑ Back to top</a>
 
 ## Features
 
-The features that the final application should support can be found in [the course introduction subject](https://mediacomem.github.io/comem-masrad-dfa/latest/subjects/intro/#12).
+The features that the final application should support can be found in [the course introduction subject](https://mediacomem.github.io/comem-masrad-dfa/latest/subjects/intro/#7).
 
 This starter instructions will ONLY cover **registering and logging users**. The rest is up to you.
 
@@ -74,13 +76,13 @@ Make sure you have [Angular CLI][ng-cli] installed:
 
 ```bash
 $> ng v
-Angular CLI: 9.1.7
+Angular CLI: 16.x.x
 ```
 
 > If you have an error when running the above command, this probably means that you need to install [Angular CLI][ng-cli]. To do so, execute:
 >
 > ```bash
-> $> npm install -g @angular/cli@latest
+> $> npm install -g @angular/cli
 > ```
 
 Go in the directory where you want the app source code to be located, then generate a blank Angular app with the following command:
@@ -89,7 +91,7 @@ Go in the directory where you want the app source code to be located, then gener
 
 ```bash
 $> cd /path/to/projects
-$> ng new travel-log --routing=true
+$> ng new travel-log --routing=true --skip-tests=true
 ```
 
 > When asked, select the CSS processor of your choice
@@ -121,6 +123,12 @@ $> npm start
 Open your Browser and go to [`http://localhost:4200`](http://localhost:4200). You should see the Angular landing page:
 
 ![Serving the blank app](images/blank-app-serve.png)
+
+You can now cleanup the template in `app.component.html` by replacing all the HTML with this simple line:
+
+```html
+<router-outlet></router-outlet>
+```
 
 <a href="#top">↑ Back to top</a>
 
@@ -175,52 +183,56 @@ You will need to perform this request and retrieve that information when the use
 
 <a href="#top">↑ Back to top</a>
 
-### Create model classes
+### Create model types
 
-Let's create a few classes to use as models when communicating with the API.
-That way we will benefit from TypeScript's typing when accessing model properties.
+Let's create a few types to use when communicating with the API.
+That way we will benefit from TypeScript's typing when accessing the properties.
 
-Create a `src/app/models/user.ts` file which exports a model representing a user of the API:
+Create a `src/app/users/user.model.ts` file which exports a model representing a user of the API:
 
 ```ts
-export class User {
+export type User = {
   id: string;
   href: string;
   name: string;
   tripsCount: number;
   createdAt: string;
   updatedAt: string;
-}
+};
 ```
 
-Create a `src/app/models/auth-request.ts` file which exports a model representing a request to the authentication resource:
+> Note that the `createdAt` and `updatedAt` properties are defined as `string` even if they represent dates. This is because the API will always return a JSON representation of the data, and dates are represented as strings in JSON.
+
+> If you want your `User` to have actual `Date` (or any other non-primitive type), you'll need to create appropriate mapping functions or use classes instead of types. This use case won't be covered in this project starter, though.
+
+Create a `src/app/auth/auth-request.model.ts` file which exports a model representing a request to the authentication resource:
 
 ```ts
-export class AuthRequest {
+export type AuthRequest = {
   username: string;
   password: string;
-}
+};
 ```
 
-Create a `src/app/models/auth-response.ts` file which exports a model representing a successful response from the authentication resource:
+Create a `src/app/auth/auth-response.model.ts` file which exports a model representing a successful response from the authentication resource:
 
 ```ts
-import { User } from "./user";
+import { User } from "../users/user.model";
 
-export class AuthResponse {
+export type AuthResponse = {
   token: string;
   user: User;
-}
+};
 ```
 
-### Create a security feature module
+### Create an authentication feature module
 
 We will define several features and utils related to managing security in our app.
 
 Let's group them in a dedicated feature module:
 
 ```bash
-$> ng generate module Security
+$> ng generate module Auth
 ```
 
 > This module does not need `--routing` since it will only provide feature and not directly add new navigation in the final app
@@ -231,7 +243,7 @@ Since the new service we'll create will make Http requests, we need to import An
 
 ```ts
 // ...Other imports
-// TODO: import Angular's httpClientModule
+// TODO: import Angular's HttpClientModule
 import { HttpClientModule } from "@angular/common/http";
 
 @NgModule({
@@ -246,22 +258,24 @@ import { HttpClientModule } from "@angular/common/http";
 export class AppModule {}
 ```
 
-Now, let's generate a reusable, injectable service to manage authentication in our `security` directory:
+Now, let's generate a reusable, injectable service to manage authentication in our `auth` directory:
 
 ```bash
-$> ng generate service security/Auth
+$> ng generate service auth/Auth
 ```
 
-You can replace the content of the generated `src/app/security/auth.service.ts` file with the following code:
+You can replace the content of the generated `src/app/auth/auth.service.ts` file with the following code:
+
+> ⚠ **Don't forget to replace `apiUrl` with your custom API base URL !** ⚠
 
 ```ts
 import { Injectable } from "@angular/core";
 import { Observable, ReplaySubject } from "rxjs";
-import { AuthResponse } from "../models/auth-response";
 import { HttpClient } from "@angular/common/http";
 import { map } from "rxjs/operators";
-import { User } from "../models/user";
-import { AuthRequest } from "../models/auth-request";
+import { User } from "../users/user.model";
+import { AuthRequest } from "./auth-request.model";
+import { AuthResponse } from "./auth-response.model";
 
 // TODO: Insert here your personnal api URL
 const apiUrl = "<REPLACE_ME>";
@@ -271,52 +285,47 @@ const apiUrl = "<REPLACE_ME>";
 })
 export class AuthService {
   /**
-   * A "ReplaySubject" is a Subject (a source of an Observable) that emits a predefined number of previously emitted
+   * A "ReplaySubject" is a Subject (the source of an Observable) that emits a predefined number of previously emitted
    * values to an Observer when it subscribes to it.
    * It will act as a sort of local "cache" for the AuthResponse object value.
    */
-  private authenticated$: ReplaySubject<AuthResponse>;
+  private authenticated$: ReplaySubject<AuthResponse | undefined>;
 
   constructor(private http: HttpClient) {
     // Create the ReplaySubject and configure it so that it emits the latest emitted value on each subscription
     this.authenticated$ = new ReplaySubject(1);
-    // Emit a null value as the initial value
-    this.authenticated$.next(null);
+    // Emit an undefined value as the initial value, since our user is not logged in
+    this.authenticated$.next(undefined);
   }
 
   /**
    * Checks if the user is authenticated by casting the latest AuthResponse value as a boolean
    */
-  isAuthenticated(): Observable<boolean> {
+  isAuthenticated$(): Observable<boolean> {
     return this.authenticated$.pipe(map((auth) => Boolean(auth)));
   }
 
   /**
    * Retrieves the User object from the latest AuthResponse value
    */
-  getUser(): Observable<User> {
-    return this.authenticated$.pipe(
-      map((auth) => (auth ? auth.user : undefined))
-    );
+  getUser$(): Observable<User | undefined> {
+    return this.authenticated$.pipe(map((auth) => auth?.user));
   }
 
   /**
    * Retrieves the token string from the latest AuthResponse value
    */
-  getToken(): Observable<string> {
-    return this.authenticated$.pipe(
-      map((auth) => (auth ? auth.token : undefined))
-    );
+  getToken$(): Observable<string | undefined> {
+    return this.authenticated$.pipe(map((auth) => auth?.token));
   }
 
   /**
    * Logs in a user with the provided AuthRequest object and emits the received AuthResponse if successful.
    */
-  login(authRequest: AuthRequest): Observable<User> {
+  login$(authRequest: AuthRequest): Observable<User> {
     return this.http.post<AuthResponse>(`${apiUrl}/auth`, authRequest).pipe(
       map((response) => {
         this.authenticated$.next(response);
-        console.log(`User ${response.user.name} logged in`);
         return response.user;
       })
     );
@@ -326,23 +335,22 @@ export class AuthService {
    * Logs out a user and emit an empty AuthResponse
    */
   logout() {
-    this.authenticated$.next(null);
-    console.log("User logged out");
+    this.authenticated$.next(undefined);
   }
 }
 ```
 
 ### Create the login screen
 
-Generate a login page component declared by the `SecurityModule`:
+Generate a login page component for the `AuthModule`:
 
 ```bash
-$> ng generate component security/LoginPage
+$> ng generate component auth/LoginPage
 ```
 
-Since this login screen will be composed of a form, you'll need to import the `FormsModule` in your `SecurityModule`.
+Since this login screen will be composed of a form, you'll need to import the `FormsModule` in your `AuthModule`.
 
-While you're at ti, add the `LoginPageComponent` to the `exports` array of the `SecurityModule` configuration in `security.module.ts`, to make it visible when importing the `SecurityModule` into the `AppModule` :
+While you're at it, add the `LoginPageComponent` to the `exports` array of the `AuthModule` configuration in `auth.module.ts`, to make it accessible when importing the `AuthModule` into another module :
 
 ```ts
 // Imports
@@ -354,10 +362,10 @@ import { FormsModule } from "@angular/forms";
   // ...
   exports: [LoginPageComponent],
 })
-export class SecurityModule {}
+export class AuthModule {}
 ```
 
-Update the generated `src/app/security/login-page/login-page.component.ts` as follows:
+Update the generated `src/app/auth/login-page/login-page.component.ts` as follows:
 
 ```ts
 import { Component, OnInit } from "@angular/core";
@@ -411,7 +419,7 @@ export class LoginPageComponent {
 }
 ```
 
-Replace the content of the generated `src/app/security/login-page/login-page.component.html` file with:
+Replace the content of the generated `src/app/auth/login-page/login-page.component.html` file with:
 
 ```html
 <form #loginForm="ngForm" (submit)="onSubmit(loginForm)">
@@ -423,7 +431,7 @@ Replace the content of the generated `src/app/security/login-page/login-page.com
       id="username"
       #usernameField="ngModel"
       required
-      [(ngModel)]="authRequest.username"
+      [(ngModel)]="authRequestInput.username"
     />
     <p *ngIf="usernameField.hasError('required') && usernameField.touched">
       Username is required
@@ -437,7 +445,7 @@ Replace the content of the generated `src/app/security/login-page/login-page.com
       id="passwrod"
       #passwordField="ngModel"
       required
-      [(ngModel)]="authRequest.password"
+      [(ngModel)]="authRequestInput.password"
     />
     <p *ngIf="passwordField.hasError('required') && passwordField.touched">
       Password is required
@@ -456,7 +464,37 @@ Replace the content of the generated `src/app/security/login-page/login-page.com
 Adds a route displaying this component in `app-routing.module.ts`:
 
 ```ts
-const routes: Routes = [{ path: "login", component: LoginPageComponent }];
+import { LoginPageComponent } from "./auth/login-page/login-page.component";
+
+const routes: Routes = [
+  {
+    path: "login",
+    component: LoginPageComponent,
+  },
+];
+
+@NgModule({
+  imports: [RouterModule.forRoot(routes)],
+  exports: [RouterModule],
+})
+export class AppRoutingModule {}
+```
+
+You'll also need to add the `AuthModule` in the `exports` array of `AppModule` so that the `LoginComponent` can properly be accessed.
+
+```ts
+// Other imports
+import { AuthModule } from "./auth/auth.module";
+
+@NgModule({
+  declarations: [
+    /* ... */
+  ],
+  imports: [, /* other imports */ AuthModule],
+  providers: [],
+  bootstrap: [AppComponent],
+})
+export class AppModule {}
 ```
 
 <a href="#top">↑ Back to top</a>
@@ -468,45 +506,32 @@ Now that we have a service to manage authentication and a working page for users
 We will use an [Angular Guard][angular-guard] to do this.
 
 ```bash
-$> ng generate guard security/guards/Auth
+$> ng generate guard auth/guards/Auth
 ```
 
 > When asked what interface you'd like to implement, select only the `CanActivate` interface.
 
-Open the `src/app/security/guards/auth.guard.ts` file and **replace all its content** with:
+Open the `src/app/auth/guards/auth.guard.ts` file and **replace all its content** with:
 
 ```ts
-import { Injectable } from "@angular/core";
-import {
-  ActivatedRouteSnapshot,
-  CanActivate,
-  Router,
-  RouterStateSnapshot,
-  UrlTree,
-} from "@angular/router";
-import { Observable } from "rxjs";
-import { map } from "rxjs/operators";
+import { inject } from "@angular/core";
+import { CanActivateFn, Router } from "@angular/router";
 import { AuthService } from "../auth.service";
+import { map } from "rxjs";
 
-@Injectable({
-  providedIn: "root",
-})
-export class AuthGuard implements CanActivate {
-  constructor(private auth: AuthService, private router: Router) {}
+export const authGuard: CanActivateFn = () => {
+  // The inject() function can be used to get an @Injectable singleton "manually".
+  const authService = inject(AuthService);
+  const router = inject(Router);
 
-  canActivate(
-    next: ActivatedRouteSnapshot,
-    state: RouterStateSnapshot
-  ): Observable<boolean | UrlTree> {
-    return (
-      this.auth
-        // Use this to check if the user is authenticated
-        .isAuthenticated()
-        // If they're authenticated, return true, otherwise, returns an UrlTree to redirect to the login page
-        .pipe(map((auth) => (auth ? true : this.router.parseUrl("/login"))))
-    );
-  }
-}
+  return (
+    authService
+      // Use this to check if the user is authenticated
+      .isAuthenticated$()
+      // If they're authenticated, return true, otherwise, returns an UrlTree to redirect to the login page
+      .pipe(map((auth) => (auth ? true : router.parseUrl("/login"))))
+  );
+};
 ```
 
 To test this guard, let's create a dummy page that we'll use as the default page of our app:
@@ -520,16 +545,22 @@ $> ng generate component DummyPage
 Then open the `src/app/app-routing.module.ts` file and add a new route for this page:
 
 ```ts
+import { DummyPageComponent } from "./dummy-page/dummy-page.component";
+import { authGuard } from "./auth/guards/auth.guard";
+// Other imports
+
 const routes: Routes = [
   // Add this default route to redirect to dummy
   { path: "", redirectTo: "dummy", pathMatch: "full" },
-  { path: "login", component: LoginPageComponent },
-  // Add the route to display the dummy page
+  {
+    path: "login",
+    component: LoginPageComponent,
+  },
   {
     path: "dummy",
     component: DummyPageComponent,
     // Prevent access to this page to unauthenticated users
-    canActivate: [AuthGuard],
+    canActivate: [authGuard],
   },
 ];
 ```
@@ -537,7 +568,7 @@ const routes: Routes = [
 The login screen is ready!
 If you reload your app, you should see that you are automatically redirected to the login page.
 
-You should be able to log in using your firstname as username (all lowercase and without any space or dash) and the password `1234`.
+You should be able to log in using the credentials your should have received.
 
 <a href="#top">↑ Back to top</a>
 
@@ -552,39 +583,36 @@ You need to use more persistent storage for the security credentials, i.e. the a
 
 We will use the `LocalStorage` feature of HTML5 to do so.
 
-Update the `src/app/security/auth.service.ts` file to add the necessary `localStorage` calls:
+Update the `src/app/auth/auth.service.ts` file to add the necessary `localStorage` calls:
 
 ```ts
-// Imports
+// Imports & API URL
 
-const apiUrl = "https://masrad-2020-tl-mathias.herokuapp.com/api";
-
-// Add a constant for the storage key
-const STORAGE_KEY = "auth";
+// Add a constant for the storage key in the LocalStorage
+const AUTH_STORAGE_KEY = "travel-log-auth";
 
 @Injectable({
   /* ... */
 })
 export class AuthService {
   constructor(private http: HttpClient) {
+    this.authenticated$ = new ReplaySubject(1);
     // Get the credentials from the localStorage when the AuthService is created
     // It will either contains an AuthResponse object of null if it does not exist
-    const savedAuth = JSON.parse(
-      localStorage.getItem(STORAGE_KEY)
-    ) as AuthResponse;
-    this.authenticated$ = new ReplaySubject(1);
-    // Emit the savedAuth as the initial value for the ReplaySubject
-    this.authenticated$.next(savedAuth);
+    const savedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
+    // If there is a savedAuth, parse it to an object and emit it as the initial authentication value,
+    // otherwise, emit undefined.
+    this.authenticated$.next(savedAuth ? JSON.parse(savedAuth) : undefined);
   }
 
   // ...
 
-  login(authRequest: AuthRequest): Observable<User> {
+  login$(authRequest: AuthRequest): Observable<User> {
     return this.http.post<AuthResponse>(`${apiUrl}/auth`, authRequest).pipe(
       // The tap operator allows you to do something with an observable's emitted value
       // and emit it again unaltered.
       // In our case, we just store this AuthResponse in the localStorage
-      tap((response) => this.saveAuth(response)),
+      tap((response) => this.#saveAuth(response)),
       map((response) => {
         // ...
       })
@@ -593,15 +621,15 @@ export class AuthService {
 
   logout() {
     // Remove the AuthResponse from the localStorage when user logs out
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(AUTH_STORAGE_KEY);
     // ...
   }
 
   /**
    * Saves the AuthResponse in the localStorage
    */
-  private saveAuth(auth: AuthResponse) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
+  #saveAuth(authResponse: AuthResponse): void {
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authResponse));
   }
 }
 ```
@@ -614,23 +642,13 @@ Your app should now remember user credentials even when you reload it!
 
 You should also add a UI component to allow the user to log out.
 
-Let's create a dedicated component for that in our `SecurityModule`:
+Let's create a dedicated component for that in our `AuthModule`:
 
 ```bash
-$> ng generate component security/LogoutButton
+$> ng generate component auth/LogoutButton --export
 ```
 
-Like the `LoginPageComponent`, configure the `SecurityModule` to export this `LogoutButtonComponent`, so the `AppModule` can see it. Do this in `security.module.ts`:
-
-```ts
-// Imports
-
-@NgModule({
-  // ...
-  exports: [LoginPageComponent, LogoutButtonComponent],
-})
-export class SecurityModule {}
-```
+> The `--export` param will update the `AuthModule`'s `exports` array to incldue the newly created `LogoutButton`, so that other modules can access it.
 
 Delete the `logout-button.component.html` and `logout-button.component.scss` file as we won't need them, then update the `logout-button.component.ts` file with the following content:
 
@@ -687,11 +705,11 @@ httpClient.post("http://example.com/path", body, {
 });
 ```
 
-But it's a bit annoying to have to manually specify this header for every request.
+But it's a bit annoying to have to manually specify this header for every request (seriously... don't do that).
 After all, we know that we need it for most calls.
 
 [Interceptors](https://medium.com/@ryanchenkie_40935/angular-authentication-using-the-http-client-and-http-interceptors-2f9d1540eb8)
-are Angular services that can be registered with the HTTP client to automatically react to requests (or responses).
+are Angular services that can be registered on the HTTP client to automatically react to requests (or responses).
 This solves our problem: we want to register an interceptor that will automatically add the `Authorization` header to all requests if the user is logged in.
 
 Let's create a service that will be responsible of calling the Travel Log API to list all users.
@@ -699,16 +717,16 @@ Let's create a service that will be responsible of calling the Travel Log API to
 > You should create a service for each of the resources that the API allows you to manage, and refrains from doing any HTTP calls from your components.
 
 ```bash
-$> ng generate service api/services/User
+$> ng generate service users/UserApi
 ```
 
-Replace the content of the generated `src/app/api/services/user.service.ts` file with:
+Replace the content of the generated `src/app/users/user-api.service.ts` file with:
 
 ```ts
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
-import { User } from "src/app/models/user";
+import { User } from "./user.model";
 
 // TODO: Insert here your personnal api URL
 const apiUrl = "<REPLACE_ME>";
@@ -716,10 +734,10 @@ const apiUrl = "<REPLACE_ME>";
 @Injectable({
   providedIn: "root",
 })
-export class UserService {
+export class UserApiService {
   constructor(private http: HttpClient) {}
 
-  loadAllUsers(): Observable<User[]> {
+  loadAllUsers$(): Observable<User[]> {
     return this.http.get<User[]>(`${apiUrl}/users`);
   }
 }
@@ -729,20 +747,19 @@ Now, update the `DummyPageComponent` to add the following code:
 
 ```ts
 import { Component, OnInit } from "@angular/core";
-import { UserService } from "../api/services/user.service";
+import { UserApiService } from "../users/user-api.service";
 
 @Component({
   selector: "app-dummy-page",
   templateUrl: "./dummy-page.component.html",
-  styleUrls: ["./dummy-page.component.scss"],
+  styleUrls: ["./dummy-page.component.css"],
 })
 export class DummyPageComponent implements OnInit {
-  // Inject the UserService
-  constructor(private userService: UserService) {}
+  constructor(private readonly userApi: UserApiService) {}
 
   ngOnInit(): void {
     // Ask the service to make an API call on component initialisation
-    this.userService.loadAllUsers().subscribe({
+    this.userApi.loadAllUsers$().subscribe({
       next: (users) => console.log("Users", users),
       error: (error) => console.warn("Error", error),
     });
@@ -756,13 +773,13 @@ you will see that there is no `Authorization` header sent even when the user is 
 Now you can generate the interceptor service:
 
 ```bash
-$> ng generate service api/ApiTokenInterceptor
+$> ng generate service auth/ApiTokenInterceptor
 ```
 
-Put the following content in the generated `src/app/api/api-token.service.ts` file:
+Put the following content in the generated `src/app/auth/api-token.service.ts` file:
 
 ```ts
-import { Injectable, Injector } from "@angular/core";
+import { Injectable, Injector, inject } from "@angular/core";
 import {
   HttpInterceptor,
   HttpRequest,
@@ -770,31 +787,41 @@ import {
   HttpEvent,
 } from "@angular/common/http";
 import { Observable } from "rxjs";
-import { AuthService } from "../security/auth.service";
 import { switchMap, first } from "rxjs/operators";
+import { AuthService } from "./auth.service";
 
 @Injectable({
   providedIn: "root",
 })
 export class ApiTokenInterceptorService implements HttpInterceptor {
-  constructor(private injector: Injector) {}
+  #auth?: AuthService;
+
+  // Inject the AuthService only when we need to acccess it.
+  // Otherwise there would be a circular dependency:
+  //  AuthInterceptorProvider -> AuthService -> HttpClient -> AuthInterceptorProvider.
+  get auth(): AuthService {
+    if (this.#auth === undefined) {
+      this.#auth = inject(AuthService);
+    }
+    return this.#auth;
+  }
 
   intercept(
     req: HttpRequest<any>,
     next: HttpHandler
   ): Observable<HttpEvent<any>> {
-    // Retrieve AuthService on method invocation from the Angular injector.
-    // (Otherwise there would be a circular dependency:
-    //  AuthInterceptorProvider -> AuthService -> HttpClient -> AuthInterceptorProvider).
-    const auth = this.injector.get(AuthService);
-
     // Get the auth token, if any
-    return auth.getToken().pipe(
+    return this.auth.getToken$().pipe(
+      // getToken$ is an Observable that never completes.
+      // But an Angular Interceptor must provide an Observable that completes,
+      // otherwise the request handling hangs indefinitely.
+      // The first() operator creates an Observable that emit the first value
+      // emitted by its source observable (here getToken$()), then completes.
       first(),
       switchMap((token) => {
         // If the token exists and the header does not...
-        if (token && !req.headers.has("Authorization")) {
-          // Clone the actual request and add it the header
+        if (token !== undefined && !req.headers.has("Authorization")) {
+          // Clone the actual request and add the required header
           req = req.clone({
             headers: req.headers.set("Authorization", `Bearer ${token}`),
           });
@@ -807,7 +834,7 @@ export class ApiTokenInterceptorService implements HttpInterceptor {
 }
 ```
 
-Now you simply need to register the interceptor in your application module.
+Now you simply need to register this interceptor in your main application module.
 Since it's an HTTP interceptor, it's not like other providers and must be registered in a special way.
 In `src/app/app.module.ts`, add:
 
@@ -834,6 +861,8 @@ The `multi: true` option is necessary because you can register multiple intercep
 
 Now all your API calls will have the `Authorization` header when the user is logged in.
 
+> You can check that it's the case in the Network tab of your browser's Developer Tools
+
 <a href="#top">↑ Back to top</a>
 
 ## Multi-environment & sensitive configuration
@@ -845,7 +874,7 @@ Sometimes you might have to store values that should not be committed to version
 
 For example, in our earlier HTTP calls, the URL was **hardcoded**, like in the `AuthService` and the `UserService`.
 
-This is not optimal considering the multi-environment problem: if you have a local instance of the API, it's URL will certainly be different thant when in production.
+This is not optimal considering the multi-environment problem: if you have a local instance of the API, it's URL will certainly be different than when in production.
 
 If you wanted to change environments, you would have to manually change the URL every time.
 
@@ -1020,11 +1049,11 @@ export class AuthService {
 <a href="#top">↑ Back to top</a>
 
 [angular-component]: https://angular.io/guide/architecture#components
-[angular-guard]: https://angular.io/guide/router#guards
+[angular-guard]: https://angular.io/guide/router#preventing-unauthorized-access
 [cordova]: https://cordova.apache.org/
 [ionic]: https://ionicframework.com/
 [ionic-tabs]: https://ionicframework.com/docs/components/#tabs
 [lazy-loading]: https://angular.io/guide/lazy-loading-ngmodules
 [rxjs-delay-when]: http://reactivex.io/rxjs/class/es6/Observable.js~Observable.html#instance-method-delayWhen
 [sass]: http://sass-lang.com
-[travel-log-api]: https://comem-travel-log-api.herokuapp.com
+[travel-log-api]: https://comem-travel-log-api.onrender.com/
