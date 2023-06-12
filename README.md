@@ -94,7 +94,9 @@ $> cd /path/to/projects
 $> ng new travel-log --routing=true --skip-tests=true
 ```
 
-> When asked, select the CSS processor of your choice
+> When asked, select the CSS processor of your choice.
+
+> **NOTE: In this starter, we assume that you selected SCSS. If that's not the case, remember to replace any reference to `.scss` file extension by the extension of your selected style.**
 
 Then wait for the install to proceed... ⏳
 
@@ -752,7 +754,7 @@ import { UserApiService } from "../users/user-api.service";
 @Component({
   selector: "app-dummy-page",
   templateUrl: "./dummy-page.component.html",
-  styleUrls: ["./dummy-page.component.css"],
+  styleUrls: ["./dummy-page.component.scss"],
 })
 export class DummyPageComponent implements OnInit {
   constructor(private readonly userApi: UserApiService) {}
@@ -884,167 +886,176 @@ Let's find a way to centralize this configuration.
 
 ### Environment files
 
-There is already a mechanism in place to handle those environment-specific values with Angular.
+Angular offers a minimalist mechanism for environment files. You must opt-in to use those environments files by using the command `ng generate environments`.
 
-In `src/environments`, you should find two files: `environment.ts` and `environment.prod.ts`.
+This will generate a new directory at `src/environments`, and update your application `angular.json` configuration.
+
+In `src/environments`, you should find two files: `environment.development.ts` and `environment.ts`.
 
 The purpose of those file is to hold the configuration values of a specific environment, so that you could easily swap one config with another to deploy your app in different environment ("development", "test", "staging", "production", etc).
 
-The first file, `environment.ts` is the default file and the one that should hold the configuration for your development environment. It should **not be committed** as your development config might be different than the one of your fellows developers.
+The first file, `environment.development.ts` is the file that should hold the configuration for your own development environment.
 
-The other one, `environment.prod.ts`, is the file that will contain production specific values. **It should not be commited** at all.
+The other one, `environment.ts`, is the file that is actually imported in your code. It will act as a placeholder file that will define and explain each of the needed and/or required environment variables for your application to run.
 
-Alas, both those files have already been commited when the project was set up... It's not a huge problem as both those files don't contain anything sensitive.
+Actual environment files (the one with the real values) **should not be commited** in your repository. They can contain sensitive information (API key, email password, encryption key, etc), and they can differ greatly from one environment to the other.
 
-You need to tell git to untrack them, though, so **delete both of them** from your filesystem (we'll recreate them later), then **commit those deletions** in git:
+But the placeholder `environment.ts` file **must be commited**. Otherwise, your fellow developers won't know what is expected.
 
-```bash
-$> rm src/environments/*
-$> git add src/environments/*
-$> git commit -m "Remove environment files from git"
-```
-
-Now, create a placeholder file whose purpose will be to explain to other developers of the project what their own environment file should contains so they could fill in the actual values.
-Create the `environment.sample.ts` file in `src/environments`, with this exact content (comment included):
-
-```ts
-// Copy this file to environment.ts and fill in appropriate values.
-export const environment = {
-  production: false,
-  apiUrl: "https://example.com/api",
-};
-```
-
-> The `environment.sample.ts` file is a placeholder and should **NOT** contain the actual configuration.
-
-<a href="#top">↑ Back to top</a>
-
-### Create the actual configuration file
-
-With this placeholder file, you can now (re)create the actual `src/environments/environment.ts` configuration file (by copying the `environment.sample.ts` file), this time containing your actual configuration values, at least for development:
-
-```ts
-export const environment = {
-  production: false,
-  // TODO: Insert here your personnal api URL
-  apiUrl: "<REPLACE_ME>",
-};
-```
-
-While we're at it, let's also (re)create the `environment.prod.ts` file, used for production builds, with this content:
-
-```ts
-export const environment = {
-  production: true,
-  // That's the same api Url in our case, but in real project, it would certainly be different
-  // TODO: Insert here your personnal api URL
-  apiUrl: "<REPLACE_ME>",
-};
-```
-
-<a href="#top">↑ Back to top</a>
-
-### Add the environment files to your `.gitignore` file
-
-Of course, you **don't want to commit neither `environment.ts` nor `environment.prod.ts`**, but you do want to commit `environment.sample.ts`
-so that anyone who clones your project can see what configuration options are required.
-To do so, add these lines at the bottom of your `.gitignore` file:
+To tell git not to track environment files other than `environment.ts`, add those lines at the end of your `.gitignore` file:
 
 ```
-# Environment files
 src/environments/*
-!src/environments/environment.sample.ts
+!src/environments/environment.ts
 ```
-
-The first line tells git not to track any file in the `src/environments` folder... except for the specific `environment.sample.ts` file (this is the second line).
-
-You now have your uncommitted environment files!
-
-### When are the environment files used
-
-The `environment.ts` file is loaded when you execute the `ng serve` command.
-
-> If you have any `ionic serve` command running, kill it and start it again to apply the changes.
-
-When executing the `ng serve` command with the `--prod` flag, like so...
-
-```bash
-$> ng serve --prod
-```
-
-> DO NOT use the `--prod` flag when developping! It considerably slows down the compilation/reload time!
-
-...Ionic replaces the content of `environment.ts` file by the content from `environment.prod.ts`, in the build (**it does not replace the content of the actual file, thankfully**).
-
-This way, whatever the environment your app is running on, `environment.ts` is **always the file holding the adequate configuration!**
 
 <a href="#top">↑ Back to top</a>
 
-### Feed the configuration to Angular
+### Update the actual configuration file
 
-Now that you have your configuration file, you want to use its values in your code.
+Currently, we only need a single environment variable in our application, which is the API URL.
+
+To enforce each of the environment file to have the proper value for the environment variable, we can define a `type` that will define them. Let's do so in a dedicated file `environment.type.ts`:
+
+```ts
+export type Environment = {
+  /**
+   * The Travel Log API URL
+   */
+  apiUrl: string;
+};
+```
+
+With this type, we can update the other environment files to type the `environment` constant that is exported:
+
+```ts
+// Import the type
+import { Environment } from "./environment.type";
+
+// ---------------------[ Add the type ]
+export const environment: Environment = {
+  /* ... */
+};
+```
+
+> Now, each time we need to add a new environment variable to our app, we update the type, and the app won't compile until we set this new variable value in all our environment files. Yeay, Typescript!
+
+### Feed the environment configuration to Angular
+
+Now that you have your environment file, you want to use its values in your code.
 
 Since it's a TypeScript file like any other that exports a constant, you simply have to import and use it.
 
-> **Remember that you only ever have to import `environment.ts` in your code**, as it's content will change depending on the environment.
+> **Your code only need to import `environment.ts`. We will see later on how Angular effectively uses the appropriate environment file depending on the environment.**
 
-Update the `UserService` so that it uses this `environment` object.
+Update the `UserApiService` so that it uses this `environment` object.
 
 ```ts
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
-import { User } from "src/app/models/user";
-// TODO Import the environment file
-import { environment } from "../../../environments/environment";
-
-// TODO remove the apiUrl constant
+import { User } from "./user.model";
+// Import environment.ts
+import { environment } from "src/environments/environment";
 
 @Injectable({
   providedIn: "root",
 })
-export class UserService {
+export class UserApiService {
   constructor(private http: HttpClient) {}
 
-  loadAllUsers(): Observable<User[]> {
-    // Update the parameter of the get(...) method
+  loadAllUsers$(): Observable<User[]> {
+    // ---------------------------[ Update the param ]----------
     return this.http.get<User[]>(`${environment.apiUrl}/users`);
   }
 }
 ```
 
-Do not forget to also update the authentication service in `src/app/security/auth.service.ts`, which also has a hardcoded URL:
+Do not forget to also update the authentication service in `src/app/auth/auth.service.ts`, which also has a hardcoded URL:
 
 ```ts
-import { Injectable } from "@angular/core";
-import { Observable, ReplaySubject } from "rxjs";
-import { AuthResponse } from "../models/auth-response";
-import { HttpClient } from "@angular/common/http";
-import { map, tap } from "rxjs/operators";
-import { User } from "../models/user";
-import { AuthRequest } from "../models/auth-request";
-// TODO imports the environment file
-import { environment } from "../../environments/environment";
+// Other imports
+import { environment } from "src/environments/environment";
 
-// TODO remove the constant
-const STORAGE_KEY = "auth";
+const AUTH_STORAGE_KEY = "travel-log-auth";
 
 @Injectable({
   providedIn: "root",
 })
 export class AuthService {
-  // ...
+  /* ... */
 
-  login(authRequest: AuthRequest): Observable<User> {
-    // TODO update the argument of the post(...) method
-    return this.http
-      .post<AuthResponse>(`${environment.apiUrl}/auth`, authRequest)
-      .pipe(/* ... */);
+  /**
+   * Logs in a user with the provided AuthRequest object and emits the received AuthResponse if successful.
+   */
+  login$(authRequest: AuthRequest): Observable<User> {
+    return (
+      this.http
+        // ------------------[ Update the param ]---------------------
+        .post<AuthResponse>(`${environment.apiUrl}/auth`, authRequest)
+        .pipe
+        /* ... */
+        ()
+    );
   }
 
-  // ...
+  /* ... */
 }
 ```
+
+<a href="#top">↑ Back to top</a>
+
+### How are the environment files used by Angular
+
+The `environment.ts` file is directly imported by your code. So how is it that it's the content of `environment.development.ts` which is used when `ng serve`-ing the app?
+
+The answer lies in `angular.json`, specifically in the `projects.travel-log.architect.build.configurations` array. Here we can define how angular behave when building for different environment. You already should have two configurations ; one for `production`, the other for `development`.
+
+In the `development` configuration, you can find the `fileReplacements` array with this replacement object:
+
+```json
+"fileReplacements": [
+  {
+    "replace": "src/environments/environment.ts",
+    "with": "src/environments/environment.development.ts"
+  }
+]
+```
+
+This tells Angular that, when building for development, it must uses the content of the `environment.development.ts` file as the content for `environment.ts`.
+
+#### Example setup for production environment
+
+So... if you'd want to have a production configuration, you would need to create a new file `environment.production.ts` in your `src/environments` directory, which would export an `Environment` constant with the proper values for your production build.
+
+**For example**:
+
+```ts
+import { Environment } from "./environment.type";
+
+export const environment: Environment = {
+  apiUrl: "https://api.travel-log.com",
+};
+```
+
+You'd also need to add a `fileReplacements` array in the `production` configuration in `angular.json`, which would replace the content of `environment.ts` with `environment.production.ts`:
+
+```json
+"fileReplacements": [
+  {
+    "replace": "src/environments/environment.ts",
+    "with": "src/environments/environment.production.ts"
+  }
+]
+```
+
+Now, if you execute the command...
+
+```
+ng build --configuration production
+```
+
+...Angular will use the values of `environment.production.ts` when generating your app's `.js` files.
 
 <a href="#top">↑ Back to top</a>
 
