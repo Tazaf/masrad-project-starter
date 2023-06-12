@@ -9,6 +9,7 @@ This material is part of the [Advanced Front-end Development](https://github.com
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+
 - [Prerequisites](#prerequisites)
 - [Features](#features)
 - [Design the user interface](#design-the-user-interface)
@@ -17,8 +18,8 @@ This material is part of the [Advanced Front-end Development](https://github.com
   - [Serve the application locally](#serve-the-application-locally)
 - [Set up security](#set-up-security)
   - [Check the documentation of the API's authentication resource](#check-the-documentation-of-the-apis-authentication-resource)
-  - [Create model classes](#create-model-classes)
-  - [Create a security feature module](#create-a-security-feature-module)
+  - [Create model types](#create-model-types)
+  - [Create an authentication feature module](#create-an-authentication-feature-module)
   - [Create an authentication service](#create-an-authentication-service)
   - [Create the login screen](#create-the-login-screen)
   - [Use the authentication service to protect access to restricted pages](#use-the-authentication-service-to-protect-access-to-restricted-pages)
@@ -27,10 +28,10 @@ This material is part of the [Advanced Front-end Development](https://github.com
   - [Configuring an HTTP interceptor](#configuring-an-http-interceptor)
 - [Multi-environment & sensitive configuration](#multi-environment--sensitive-configuration)
   - [Environment files](#environment-files)
-  - [Create the actual configuration file](#create-the-actual-configuration-file)
-  - [Add the environment files to your `.gitignore` file](#add-the-environment-files-to-your-gitignore-file)
-  - [When are the environment files used](#when-are-the-environment-files-used)
-  - [Feed the configuration to Angular](#feed-the-configuration-to-angular)
+  - [Update the actual configuration file](#update-the-actual-configuration-file)
+  - [Feed the environment configuration to Angular](#feed-the-environment-configuration-to-angular)
+  - [How are the environment files used by Angular](#how-are-the-environment-files-used-by-angular)
+    - [Example setup for production environment](#example-setup-for-production-environment)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
