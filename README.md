@@ -9,7 +9,6 @@ This material is part of the [Advanced Front-end Development](https://github.com
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-
 - [Prerequisites](#prerequisites)
 - [Features](#features)
 - [Design the user interface](#design-the-user-interface)
@@ -371,33 +370,35 @@ export class AuthModule {}
 Update the generated `src/app/auth/login-page/login-page.component.ts` as follows:
 
 ```ts
-import { Component, OnInit } from "@angular/core";
-import { AuthRequest } from "src/app/models/auth-request";
-import { AuthService } from "../auth.service";
-import { Router } from "@angular/router";
+import { Component } from "@angular/core";
 import { NgForm } from "@angular/forms";
+import { Router } from "@angular/router";
+import { AuthService } from "../auth.service";
+import { AuthRequest } from "../auth-request.model";
 
 @Component({
   selector: "app-login-page",
   templateUrl: "./login-page.component.html",
-  styleUrls: ["./login-page.component.scss"],
+  styleUrls: ["./login-page.component.css"],
 })
 export class LoginPageComponent {
   /**
    * This authentication request object will be updated when the user
    * edits the login form. It will then be sent to the API.
+   *
+   * Partial is a generic typescript that creates a type from the type param,
+   * with all the properties optionally undefined.
    */
-  authRequest: AuthRequest;
+  authRequestInput: Partial<AuthRequest>;
 
   /**
-   * If true, it means that the authentication API has return a failed response
+   * If defined, it means that the authentication API has return a failed response
    * (probably because the name or password is incorrect).
    */
-  loginError: boolean;
+  loginError?: string;
 
   constructor(private auth: AuthService, private router: Router) {
-    this.authRequest = new AuthRequest();
-    this.loginError = false;
+    this.authRequestInput = {};
   }
 
   /**
@@ -407,16 +408,21 @@ export class LoginPageComponent {
     // Only do something if the form is valid
     if (form.valid) {
       // Hide any previous login error.
-      this.loginError = false;
+      this.loginError = undefined;
 
       // Perform the authentication request to the API.
-      this.auth.login(this.authRequest).subscribe({
-        next: () => this.router.navigateByUrl("/"),
-        error: (err) => {
-          this.loginError = true;
-          console.warn(`Authentication failed: ${err.message}`);
-        },
-      });
+      // Since the login$() method requires an AuthRequest param, but
+      // our authRequestInput has optional properties, we need to convert it
+      // to an new object that matches the AuthRequest type.
+      this.auth
+        .login$({
+          password: this.authRequestInput.password ?? "",
+          username: this.authRequestInput.username ?? "",
+        })
+        .subscribe({
+          next: () => this.router.navigateByUrl("/"),
+          error: (err) => (this.loginError = err.message),
+        });
     }
   }
 }
